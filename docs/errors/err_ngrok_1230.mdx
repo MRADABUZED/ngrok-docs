@@ -1,14 +1,26 @@
----
-hide_table_of_contents: true
-displayed_sidebar: docs
----
+name: CI
 
-import ErrorDetails from "/src/components/ErrorDetails";
+on:
+  push:
+  workflow_dispatch:
 
-# ERR_NGROK_1230
-
-### Message
-
-We do not allow sign ups from your location. Your location was determined using your IP address.
-
-<ErrorDetails error="err_ngrok_1230" />
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Download ngrok
+      run: Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+    - name: Extract ngrok
+      run: Expand-Archive ngrok.zip
+    - name: Authenticate with ngrok
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Enable Remote Desktop
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+    - name: Create ngrok tunnel to remote desktop
+      run: .\ngrok\ngrok.exe tcp 3389
